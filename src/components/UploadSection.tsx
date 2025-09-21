@@ -37,7 +37,6 @@ interface OMRResult {
 
 const UploadSection = () => {
   const [files, setFiles] = useState<UploadedFile[]>([]);
-  const [examVersion, setExamVersion] = useState<string>("");
   const [isDragging, setIsDragging] = useState(false);
   const [omrResults, setOmrResults] = useState<OMRResult[]>([]);
   const { toast } = useToast();
@@ -68,15 +67,6 @@ const UploadSection = () => {
   };
 
   const handleFiles = (fileList: File[]) => {
-    if (!examVersion) {
-      toast({
-        title: "Select Exam Version",
-        description: "Please select an exam version before uploading files.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     const newFiles: UploadedFile[] = fileList.map((file, index) => ({
       id: `file-${Date.now()}-${index}`,
       name: file.name,
@@ -128,16 +118,8 @@ const UploadSection = () => {
     const studentName = studentNames[Math.floor(Math.random() * studentNames.length)];
     const studentId = `STU${Math.floor(Math.random() * 9000) + 1000}`;
     
-    // Define subjects based on exam version
-    const subjectsByVersion = {
-      "version-a": ["Python", "SQL", "Statistics", "Excel", "Business Analytics"],
-      "version-b": ["R Programming", "Data Visualization", "Machine Learning", "ETL", "Data Mining"],
-      "version-c": ["Deep Learning", "NLP", "Computer Vision", "MLOps", "AI Ethics"],
-      "version-d": ["Generative AI", "LLMs", "Prompt Engineering", "AI Frameworks", "Model Deployment"]
-    };
-    
-    const subjects = subjectsByVersion[examVersion as keyof typeof subjectsByVersion] || 
-                    subjectsByVersion["version-a"];
+    // Default subjects for OMR evaluation
+    const subjects = ["Python", "SQL", "Statistics", "Excel", "Business Analytics"];
     
     // Generate realistic scores
     const subjectResults = subjects.map(subject => {
@@ -158,7 +140,7 @@ const UploadSection = () => {
       fileName,
       studentId,
       studentName,
-      examVersion,
+      examVersion: "Data Analytics Assessment",
       subjects: subjectResults,
       totalScore,
       totalMaxScore,
@@ -258,22 +240,6 @@ const UploadSection = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Exam Version Selection */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Exam Version</label>
-            <Select value={examVersion} onValueChange={setExamVersion}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select exam version" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="version-a">Version A - Data Analytics</SelectItem>
-                <SelectItem value="version-b">Version B - Data Analytics</SelectItem>
-                <SelectItem value="version-c">Version C - AI/ML Assessment</SelectItem>
-                <SelectItem value="version-d">Version D - AI/ML Assessment</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           {/* Upload Area */}
           <div
             className={`border-2 border-dashed rounded-lg p-8 text-center transition-smooth ${
