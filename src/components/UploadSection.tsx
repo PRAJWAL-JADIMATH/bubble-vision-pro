@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, FileImage, X, CheckCircle, AlertCircle } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Upload, FileImage, X, CheckCircle, AlertCircle, Award, Target } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface UploadedFile {
@@ -16,10 +17,29 @@ interface UploadedFile {
   preview?: string;
 }
 
+interface OMRResult {
+  fileId: string;
+  fileName: string;
+  studentId: string;
+  studentName: string;
+  examVersion: string;
+  subjects: {
+    name: string;
+    score: number;
+    maxScore: number;
+    percentage: number;
+  }[];
+  totalScore: number;
+  totalMaxScore: number;
+  overallPercentage: number;
+  evaluatedAt: string;
+}
+
 const UploadSection = () => {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [examVersion, setExamVersion] = useState<string>("");
   const [isDragging, setIsDragging] = useState(false);
+  const [omrResults, setOmrResults] = useState<OMRResult[]>([]);
   const { toast } = useToast();
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -102,6 +122,51 @@ const UploadSection = () => {
     }, 200);
   };
 
+  const simulateOMREvaluation = (fileId: string, fileName: string): OMRResult => {
+    // Generate mock student data
+    const studentNames = ["Aarav Singh", "Priya Sharma", "Rahul Kumar", "Sneha Patel", "Arjun Reddy"];
+    const studentName = studentNames[Math.floor(Math.random() * studentNames.length)];
+    const studentId = `STU${Math.floor(Math.random() * 9000) + 1000}`;
+    
+    // Define subjects based on exam version
+    const subjectsByVersion = {
+      "version-a": ["Python", "SQL", "Statistics", "Excel", "Business Analytics"],
+      "version-b": ["R Programming", "Data Visualization", "Machine Learning", "ETL", "Data Mining"],
+      "version-c": ["Deep Learning", "NLP", "Computer Vision", "MLOps", "AI Ethics"],
+      "version-d": ["Generative AI", "LLMs", "Prompt Engineering", "AI Frameworks", "Model Deployment"]
+    };
+    
+    const subjects = subjectsByVersion[examVersion as keyof typeof subjectsByVersion] || 
+                    subjectsByVersion["version-a"];
+    
+    // Generate realistic scores
+    const subjectResults = subjects.map(subject => {
+      const score = Math.floor(Math.random() * 5) + 15; // 15-20 range for realistic scores
+      return {
+        name: subject,
+        score,
+        maxScore: 20,
+        percentage: (score / 20) * 100
+      };
+    });
+    
+    const totalScore = subjectResults.reduce((sum, subject) => sum + subject.score, 0);
+    const totalMaxScore = 100;
+    
+    return {
+      fileId,
+      fileName,
+      studentId,
+      studentName,
+      examVersion,
+      subjects: subjectResults,
+      totalScore,
+      totalMaxScore,
+      overallPercentage: (totalScore / totalMaxScore) * 100,
+      evaluatedAt: new Date().toISOString()
+    };
+  };
+
   const simulateProcessing = (fileId: string) => {
     const processInterval = setInterval(() => {
       setFiles(prev => prev.map(file => {
@@ -110,6 +175,18 @@ const UploadSection = () => {
           if (newProgress >= 100) {
             clearInterval(processInterval);
             const isSuccess = Math.random() > 0.1; // 90% success rate
+            
+            if (isSuccess) {
+              // Generate OMR evaluation result
+              const result = simulateOMREvaluation(fileId, file.name);
+              setOmrResults(prev => [...prev, result]);
+              
+              toast({
+                title: "OMR Evaluation Complete",
+                description: `${result.studentName} scored ${result.totalScore}/100 (${result.overallPercentage.toFixed(1)}%)`,
+              });
+            }
+            
             return { 
               ...file, 
               progress: 100, 
@@ -125,6 +202,16 @@ const UploadSection = () => {
 
   const removeFile = (fileId: string) => {
     setFiles(prev => prev.filter(file => file.id !== fileId));
+    setOmrResults(prev => prev.filter(result => result.fileId !== fileId));
+  };
+
+  const clearAllResults = () => {
+    setFiles([]);
+    setOmrResults([]);
+    toast({
+      title: "Results Cleared",
+      description: "All files and evaluation results have been cleared.",
+    });
   };
 
   const formatFileSize = (bytes: number) => {
@@ -283,6 +370,138 @@ const UploadSection = () => {
                   >
                     <X className="w-4 h-4" />
                   </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* OMR Evaluation Results */}
+      {omrResults.length > 0 && (
+        <Card className="shadow-card">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Award className="w-5 h-5 text-primary" />
+                <div>
+                  <CardTitle>OMR Evaluation Results ({omrResults.length})</CardTitle>
+                  <CardDescription>
+                    Automated evaluation results for uploaded OMR sheets
+                  </CardDescription>
+                </div>
+              </div>
+              <Button 
+                variant="outline" 
+                onClick={clearAllResults}
+                className="text-destructive hover:text-destructive"
+              >
+                Clear All
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              {omrResults.map((result) => (
+                <div key={result.fileId} className="border rounded-lg p-4 space-y-4">
+                  {/* Student Header */}
+                  <div className="flex items-center justify-between pb-3 border-b">
+                    <div>
+                      <h3 className="font-semibold text-lg">{result.studentName}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Student ID: {result.studentId} | File: {result.fileName}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <div className="flex items-center space-x-2">
+                        <Target className="w-4 h-4 text-primary" />
+                        <span className="text-2xl font-bold text-primary">
+                          {result.totalScore}/{result.totalMaxScore}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {result.overallPercentage.toFixed(1)}% Overall
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Subject-wise Scores */}
+                  <div>
+                    <h4 className="font-medium mb-3">Subject-wise Performance</h4>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Subject</TableHead>
+                          <TableHead className="text-center">Score</TableHead>
+                          <TableHead className="text-center">Max Score</TableHead>
+                          <TableHead className="text-center">Percentage</TableHead>
+                          <TableHead className="text-center">Grade</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {result.subjects.map((subject, index) => (
+                          <TableRow key={index}>
+                            <TableCell className="font-medium">{subject.name}</TableCell>
+                            <TableCell className="text-center font-semibold">
+                              {subject.score}
+                            </TableCell>
+                            <TableCell className="text-center">{subject.maxScore}</TableCell>
+                            <TableCell className="text-center">
+                              <span className={`font-medium ${
+                                subject.percentage >= 80 ? 'text-success' :
+                                subject.percentage >= 60 ? 'text-warning' : 'text-destructive'
+                              }`}>
+                                {subject.percentage.toFixed(1)}%
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant={
+                                subject.percentage >= 90 ? 'default' :
+                                subject.percentage >= 80 ? 'secondary' :
+                                subject.percentage >= 60 ? 'outline' : 'destructive'
+                              }>
+                                {subject.percentage >= 90 ? 'A+' :
+                                 subject.percentage >= 80 ? 'A' :
+                                 subject.percentage >= 70 ? 'B+' :
+                                 subject.percentage >= 60 ? 'B' : 'C'}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Summary Stats */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-3 border-t">
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-primary">{result.totalScore}</p>
+                      <p className="text-sm text-muted-foreground">Total Score</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-success">
+                        {result.subjects.filter(s => s.percentage >= 60).length}
+                      </p>
+                      <p className="text-sm text-muted-foreground">Subjects Passed</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold">
+                        {result.overallPercentage.toFixed(1)}%
+                      </p>
+                      <p className="text-sm text-muted-foreground">Overall %</p>
+                    </div>
+                    <div className="text-center">
+                      <Badge className="text-base px-3 py-1" variant={
+                        result.overallPercentage >= 80 ? 'default' : 'secondary'
+                      }>
+                        {result.overallPercentage >= 80 ? 'PASS' : 'NEEDS IMPROVEMENT'}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-muted-foreground text-center pt-2 border-t">
+                    Evaluated on: {new Date(result.evaluatedAt).toLocaleString()}
+                  </div>
                 </div>
               ))}
             </div>
