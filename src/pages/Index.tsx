@@ -43,7 +43,10 @@ const Index = () => {
                 <p className="text-sm text-muted-foreground">Innomatics Research Labs</p>
               </div>
             </div>
-            <Button className="bg-gradient-primary hover:opacity-90 transition-smooth">
+            <Button 
+              className="bg-gradient-primary hover:opacity-90 transition-smooth"
+              onClick={() => setActiveTab("upload")}
+            >
               <Upload className="w-4 h-4 mr-2" />
               Upload Sheets
             </Button>
