@@ -41,32 +41,7 @@ const UploadSection = () => {
   const [omrResults, setOmrResults] = useState<OMRResult[]>([]);
   const { toast } = useToast();
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    
-    const droppedFiles = Array.from(e.dataTransfer.files);
-    handleFiles(droppedFiles);
-  }, []);
-
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const selectedFiles = Array.from(e.target.files);
-      handleFiles(selectedFiles);
-    }
-  };
-
-  const handleFiles = (fileList: File[]) => {
+  const handleFiles = useCallback((fileList: File[]) => {
     const newFiles: UploadedFile[] = fileList.map((file, index) => ({
       id: `file-${Date.now()}-${index}`,
       name: file.name,
@@ -87,6 +62,31 @@ const UploadSection = () => {
       title: "Files Uploaded",
       description: `${fileList.length} OMR sheet(s) uploaded successfully.`,
     });
+  }, [toast]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    handleFiles(droppedFiles);
+  }, [handleFiles]);
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const selectedFiles = Array.from(e.target.files);
+      handleFiles(selectedFiles);
+    }
   };
 
   const simulateFileProcessing = (fileId: string) => {
