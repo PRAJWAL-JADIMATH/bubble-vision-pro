@@ -1,86 +1,83 @@
-import { useState, useCallback } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, FileImage, X, CheckCircle, AlertCircle, Award, Target } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Upload, FileText, CheckCircle2, XCircle, Clock, Trash2, Award } from "lucide-react";
 
 interface UploadedFile {
   id: string;
   name: string;
   size: number;
-  status: 'uploading' | 'processing' | 'completed' | 'error';
+  file: File;
+  status: "ready" | "processing" | "completed" | "error";
   progress: number;
-  preview?: string;
+  studentName?: string;
+  rollNumber?: string;
+  examVersion?: string;
 }
 
 interface OMRResult {
   fileId: string;
-  fileName: string;
-  studentId: string;
   studentName: string;
+  rollNumber: string;
   examVersion: string;
-  subjects: {
-    name: string;
-    score: number;
-    maxScore: number;
-    percentage: number;
-  }[];
   totalScore: number;
-  totalMaxScore: number;
-  overallPercentage: number;
-  evaluatedAt: string;
+  percentage: number;
+  subjectScores: {
+    subject1: number;
+    subject2: number;
+    subject3: number;
+    subject4: number;
+    subject5: number;
+  };
 }
 
-const UploadSection = () => {
+export const UploadSection = () => {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [omrResults, setOmrResults] = useState<OMRResult[]>([]);
-  const { toast } = useToast();
 
-  const handleFiles = useCallback((fileList: File[]) => {
-    const newFiles: UploadedFile[] = fileList.map((file, index) => ({
-      id: `file-${Date.now()}-${index}`,
+  const handleFiles = (fileList: File[]) => {
+    const newFiles: UploadedFile[] = fileList.map((file) => ({
+      id: Math.random().toString(36).substr(2, 9),
       name: file.name,
       size: file.size,
-      status: 'uploading',
+      file: file,
+      status: "ready",
       progress: 0,
-      preview: URL.createObjectURL(file)
     }));
 
-    setFiles(prev => [...prev, ...newFiles]);
-
-    // Simulate upload and processing
-    newFiles.forEach((file) => {
-      simulateFileProcessing(file.id);
-    });
+    setFiles((prev) => [...prev, ...newFiles]);
 
     toast({
-      title: "Files Uploaded",
-      description: `${fileList.length} OMR sheet(s) uploaded successfully.`,
+      title: "Files Added",
+      description: `${fileList.length} file(s) added. Please fill in student details to process.`,
     });
-  }, [toast]);
+  };
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
-  }, []);
+  };
 
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
+  const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-  }, []);
+  };
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
     const droppedFiles = Array.from(e.dataTransfer.files);
     handleFiles(droppedFiles);
-  }, [handleFiles]);
+  };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -89,102 +86,99 @@ const UploadSection = () => {
     }
   };
 
-  const simulateFileProcessing = (fileId: string) => {
-    // Simulate upload progress
-    const uploadInterval = setInterval(() => {
-      setFiles(prev => prev.map(file => {
-        if (file.id === fileId && file.status === 'uploading') {
-          const newProgress = Math.min(file.progress + Math.random() * 20, 100);
-          if (newProgress >= 100) {
-            clearInterval(uploadInterval);
-            setTimeout(() => {
-              setFiles(prev => prev.map(f => 
-                f.id === fileId ? { ...f, status: 'processing', progress: 0 } : f
-              ));
-              simulateProcessing(fileId);
-            }, 500);
-            return { ...file, progress: 100, status: 'uploading' };
-          }
-          return { ...file, progress: newProgress };
-        }
-        return file;
-      }));
-    }, 200);
-  };
+  const processFile = async (fileId: string) => {
+    const file = files.find(f => f.id === fileId);
+    if (!file || !file.studentName || !file.rollNumber || !file.examVersion) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all student details",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  const simulateOMREvaluation = (fileId: string, fileName: string): OMRResult => {
-    // Generate mock student data
-    const studentNames = ["Aarav Singh", "Priya Sharma", "Rahul Kumar", "Sneha Patel", "Arjun Reddy"];
-    const studentName = studentNames[Math.floor(Math.random() * studentNames.length)];
-    const studentId = `STU${Math.floor(Math.random() * 9000) + 1000}`;
-    
-    // Default subjects for OMR evaluation
-    const subjects = ["Python", "SQL", "Statistics", "Excel", "Business Analytics"];
-    
-    // Generate realistic scores
-    const subjectResults = subjects.map(subject => {
-      const score = Math.floor(Math.random() * 5) + 15; // 15-20 range for realistic scores
-      return {
-        name: subject,
-        score,
-        maxScore: 20,
-        percentage: (score / 20) * 100
+    try {
+      setFiles((prev) =>
+        prev.map((f) => f.id === fileId ? { ...f, status: "processing", progress: 0 } : f)
+      );
+
+      // Convert image to base64
+      const base64 = await fileToBase64(file.file);
+
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setFiles((prev) =>
+          prev.map((f) => f.id === fileId ? { ...f, progress: Math.min(f.progress + 10, 90) } : f)
+        );
+      }, 300);
+
+      const { data, error } = await supabase.functions.invoke('process-omr', {
+        body: {
+          imageBase64: base64,
+          studentName: file.studentName,
+          rollNumber: file.rollNumber,
+          examVersion: file.examVersion,
+        },
+      });
+
+      clearInterval(progressInterval);
+
+      if (error) throw error;
+
+      setFiles((prev) =>
+        prev.map((f) => f.id === fileId ? { ...f, status: "completed", progress: 100 } : f)
+      );
+
+      const result: OMRResult = {
+        fileId,
+        studentName: file.studentName,
+        rollNumber: file.rollNumber,
+        examVersion: file.examVersion,
+        totalScore: data.evaluation.totalScore,
+        percentage: data.evaluation.percentage,
+        subjectScores: data.evaluation.subjectScores,
       };
-    });
-    
-    const totalScore = subjectResults.reduce((sum, subject) => sum + subject.score, 0);
-    const totalMaxScore = 100;
-    
-    return {
-      fileId,
-      fileName,
-      studentId,
-      studentName,
-      examVersion: "Data Analytics Assessment",
-      subjects: subjectResults,
-      totalScore,
-      totalMaxScore,
-      overallPercentage: (totalScore / totalMaxScore) * 100,
-      evaluatedAt: new Date().toISOString()
-    };
+
+      setOmrResults((prev) => [...prev, result]);
+
+      toast({
+        title: "Success",
+        description: `OMR sheet processed successfully. Score: ${data.evaluation.totalScore}/100`,
+      });
+    } catch (error: any) {
+      console.error('Error processing OMR:', error);
+      setFiles((prev) =>
+        prev.map((f) => f.id === fileId ? { ...f, status: "error", progress: 0 } : f)
+      );
+      toast({
+        title: "Error",
+        description: error.message || "Failed to process OMR sheet",
+        variant: "destructive",
+      });
+    }
   };
 
-  const simulateProcessing = (fileId: string) => {
-    const processInterval = setInterval(() => {
-      setFiles(prev => prev.map(file => {
-        if (file.id === fileId && file.status === 'processing') {
-          const newProgress = Math.min(file.progress + Math.random() * 15, 100);
-          if (newProgress >= 100) {
-            clearInterval(processInterval);
-            const isSuccess = Math.random() > 0.1; // 90% success rate
-            
-            if (isSuccess) {
-              // Generate OMR evaluation result
-              const result = simulateOMREvaluation(fileId, file.name);
-              setOmrResults(prev => [...prev, result]);
-              
-              toast({
-                title: "OMR Evaluation Complete",
-                description: `${result.studentName} scored ${result.totalScore}/100 (${result.overallPercentage.toFixed(1)}%)`,
-              });
-            }
-            
-            return { 
-              ...file, 
-              progress: 100, 
-              status: isSuccess ? 'completed' : 'error' 
-            };
-          }
-          return { ...file, progress: newProgress };
-        }
-        return file;
-      }));
-    }, 300);
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const base64 = reader.result as string;
+        resolve(base64.split(',')[1]);
+      };
+      reader.onerror = reject;
+    });
+  };
+
+  const updateFileDetails = (fileId: string, field: string, value: string) => {
+    setFiles((prev) =>
+      prev.map((f) => f.id === fileId ? { ...f, [field]: value } : f)
+    );
   };
 
   const removeFile = (fileId: string) => {
-    setFiles(prev => prev.filter(file => file.id !== fileId));
-    setOmrResults(prev => prev.filter(result => result.fileId !== fileId));
+    setFiles((prev) => prev.filter((f) => f.id !== fileId));
+    setOmrResults((prev) => prev.filter((r) => r.fileId !== fileId));
   };
 
   const clearAllResults = () => {
@@ -192,7 +186,7 @@ const UploadSection = () => {
     setOmrResults([]);
     toast({
       title: "Results Cleared",
-      description: "All files and evaluation results have been cleared.",
+      description: "All files and results have been cleared.",
     });
   };
 
@@ -207,18 +201,20 @@ const UploadSection = () => {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
-        return <CheckCircle className="w-4 h-4 text-success" />;
+        return <CheckCircle2 className="w-5 h-5 text-success" />;
       case 'error':
-        return <AlertCircle className="w-4 h-4 text-destructive" />;
+        return <XCircle className="w-5 h-5 text-destructive" />;
+      case 'processing':
+        return <Clock className="w-5 h-5 text-primary animate-pulse" />;
       default:
-        return <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />;
+        return <FileText className="w-5 h-5 text-muted-foreground" />;
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'uploading':
-        return 'Uploading...';
+      case 'ready':
+        return 'Ready to process';
       case 'processing':
         return 'Processing...';
       case 'completed':
@@ -232,43 +228,38 @@ const UploadSection = () => {
 
   return (
     <div className="space-y-6">
-      <Card className="shadow-card">
-        <CardHeader>
-          <CardTitle>Upload OMR Sheets</CardTitle>
-          <CardDescription>
-            Upload OMR sheets captured via mobile camera for automated evaluation
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Upload Area */}
+      <Card className="p-6">
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-2xl font-bold">Upload OMR Sheets</h2>
+            <p className="text-muted-foreground">
+              Upload images captured via mobile camera for automated evaluation
+            </p>
+          </div>
+
           <div
-            className={`border-2 border-dashed rounded-lg p-8 text-center transition-smooth ${
-              isDragging 
-                ? 'border-primary bg-primary/5' 
-                : 'border-border hover:border-primary/50'
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+              isDragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
             }`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
           >
             <div className="flex flex-col items-center space-y-4">
-              <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center">
-                <Upload className="w-8 h-8 text-primary-foreground" />
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                <Upload className="w-8 h-8 text-primary" />
               </div>
               <div>
                 <h3 className="text-lg font-medium">Drop OMR sheets here</h3>
                 <p className="text-muted-foreground">or click to browse files</p>
               </div>
-              <Button 
-                onClick={() => document.getElementById('file-input')?.click()}
-                className="bg-gradient-primary hover:opacity-90"
-              >
+              <Button onClick={() => document.getElementById('file-input')?.click()}>
                 Browse Files
               </Button>
               <input
                 id="file-input"
                 type="file"
-                accept="image/*,.pdf"
+                accept="image/*"
                 multiple
                 className="hidden"
                 onChange={handleFileInput}
@@ -276,160 +267,170 @@ const UploadSection = () => {
             </div>
           </div>
 
-          {/* Upload Guidelines */}
           <div className="bg-muted/50 rounded-lg p-4">
             <h4 className="font-medium mb-2">Upload Guidelines</h4>
             <ul className="text-sm text-muted-foreground space-y-1">
-              <li>• Supported formats: JPG, PNG, PDF</li>
-              <li>• Maximum file size: 10MB per sheet</li>
+              <li>• Supported formats: JPG, PNG</li>
               <li>• Ensure sheets are well-lit and properly aligned</li>
               <li>• Multiple sheets can be uploaded simultaneously</li>
+              <li>• Supports versions A, B, C, and D</li>
             </ul>
           </div>
-        </CardContent>
+        </div>
       </Card>
 
-      {/* Uploaded Files */}
       {files.length > 0 && (
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>Uploaded Files ({files.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {files.map((file) => (
-                <div key={file.id} className="flex items-center space-x-4 p-3 border rounded-lg">
-                  <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
-                    {file.preview ? (
-                      <img 
-                        src={file.preview} 
-                        alt={file.name}
-                        className="w-full h-full object-cover rounded-lg"
-                      />
-                    ) : (
-                      <FileImage className="w-6 h-6 text-muted-foreground" />
+        <Card className="p-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-semibold">Uploaded Files ({files.length})</h3>
+              {omrResults.length > 0 && (
+                <Button variant="outline" onClick={clearAllResults}>
+                  Clear All
+                </Button>
+              )}
+            </div>
+
+            {files.map((file) => (
+              <div
+                key={file.id}
+                className="flex flex-col gap-4 p-4 border rounded-lg bg-card"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="flex-shrink-0">{getStatusIcon(file.status)}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{file.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {formatFileSize(file.size)} • {getStatusText(file.status)}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeFile(file.id)}
+                        className="flex-shrink-0 ml-2"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {file.status === "processing" && (
+                      <Progress value={file.progress} className="h-2" />
                     )}
                   </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{file.name}</p>
-                    <p className="text-sm text-muted-foreground">{formatFileSize(file.size)}</p>
-                    
-                    <div className="flex items-center space-x-2 mt-2">
-                      {file.status !== 'completed' && file.status !== 'error' && (
-                        <Progress value={file.progress} className="flex-1" />
-                      )}
-                      <div className="flex items-center space-x-1">
-                        {getStatusIcon(file.status)}
-                        <Badge variant={file.status === 'completed' ? 'default' : 'secondary'}>
-                          {getStatusText(file.status)}
-                        </Badge>
-                      </div>
+                </div>
+
+                {file.status !== "completed" && (
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-3 border-t">
+                    <div className="space-y-1">
+                      <Label htmlFor={`student-${file.id}`} className="text-xs">Student Name</Label>
+                      <Input
+                        id={`student-${file.id}`}
+                        placeholder="Enter name"
+                        value={file.studentName || ""}
+                        onChange={(e) => updateFileDetails(file.id, "studentName", e.target.value)}
+                        className="h-8"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor={`roll-${file.id}`} className="text-xs">Roll Number</Label>
+                      <Input
+                        id={`roll-${file.id}`}
+                        placeholder="Enter roll no"
+                        value={file.rollNumber || ""}
+                        onChange={(e) => updateFileDetails(file.id, "rollNumber", e.target.value)}
+                        className="h-8"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor={`version-${file.id}`} className="text-xs">Exam Version</Label>
+                      <Select
+                        value={file.examVersion || ""}
+                        onValueChange={(value) => updateFileDetails(file.id, "examVersion", value)}
+                      >
+                        <SelectTrigger id={`version-${file.id}`} className="h-8">
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="A">Version A</SelectItem>
+                          <SelectItem value="B">Version B</SelectItem>
+                          <SelectItem value="C">Version C</SelectItem>
+                          <SelectItem value="D">Version D</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-end">
+                      <Button
+                        onClick={() => processFile(file.id)}
+                        disabled={!file.studentName || !file.rollNumber || !file.examVersion || file.status === "processing"}
+                        className="h-8 w-full"
+                        size="sm"
+                      >
+                        Process
+                      </Button>
                     </div>
                   </div>
-                  
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeFile(file.id)}
-                    className="flex-shrink-0"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
+                )}
+              </div>
+            ))}
+          </div>
         </Card>
       )}
 
-      {/* OMR Evaluation Results */}
       {omrResults.length > 0 && (
-        <Card className="shadow-card">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Award className="w-5 h-5 text-primary" />
-                <div>
-                  <CardTitle>OMR Evaluation Results ({omrResults.length})</CardTitle>
-                  <CardDescription>
-                    Automated evaluation results for uploaded OMR sheets
-                  </CardDescription>
-                </div>
-              </div>
-              <Button 
-                variant="outline" 
-                onClick={clearAllResults}
-                className="text-destructive hover:text-destructive"
-              >
-                Clear All
-              </Button>
+        <Card className="p-6">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Award className="w-5 h-5 text-primary" />
+              <h3 className="text-xl font-semibold">Evaluation Results ({omrResults.length})</h3>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
+
+            <div className="space-y-4">
               {omrResults.map((result) => (
                 <div key={result.fileId} className="border rounded-lg p-4 space-y-4">
-                  {/* Student Header */}
                   <div className="flex items-center justify-between pb-3 border-b">
                     <div>
-                      <h3 className="font-semibold text-lg">{result.studentName}</h3>
+                      <h4 className="font-semibold text-lg">{result.studentName}</h4>
                       <p className="text-sm text-muted-foreground">
-                        Student ID: {result.studentId} | File: {result.fileName}
+                        Roll: {result.rollNumber} | Version: {result.examVersion}
                       </p>
                     </div>
                     <div className="text-right">
-                      <div className="flex items-center space-x-2">
-                        <Target className="w-4 h-4 text-primary" />
-                        <span className="text-2xl font-bold text-primary">
-                          {result.totalScore}/{result.totalMaxScore}
-                        </span>
+                      <div className="text-2xl font-bold text-primary">
+                        {result.totalScore}/100
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {result.overallPercentage.toFixed(1)}% Overall
+                        {result.percentage.toFixed(1)}%
                       </p>
                     </div>
                   </div>
 
-                  {/* Subject-wise Scores */}
                   <div>
-                    <h4 className="font-medium mb-3">Subject-wise Performance</h4>
+                    <h5 className="font-medium mb-3">Subject-wise Scores</h5>
                     <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead>Subject</TableHead>
                           <TableHead className="text-center">Score</TableHead>
-                          <TableHead className="text-center">Max Score</TableHead>
                           <TableHead className="text-center">Percentage</TableHead>
-                          <TableHead className="text-center">Grade</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {result.subjects.map((subject, index) => (
+                        {Object.entries(result.subjectScores).map(([subject, score], index) => (
                           <TableRow key={index}>
-                            <TableCell className="font-medium">{subject.name}</TableCell>
-                            <TableCell className="text-center font-semibold">
-                              {subject.score}
+                            <TableCell className="font-medium">
+                              Subject {index + 1}
                             </TableCell>
-                            <TableCell className="text-center">{subject.maxScore}</TableCell>
-                            <TableCell className="text-center">
-                              <span className={`font-medium ${
-                                subject.percentage >= 80 ? 'text-success' :
-                                subject.percentage >= 60 ? 'text-warning' : 'text-destructive'
-                              }`}>
-                                {subject.percentage.toFixed(1)}%
-                              </span>
+                            <TableCell className="text-center font-semibold">
+                              {score}/20
                             </TableCell>
                             <TableCell className="text-center">
                               <Badge variant={
-                                subject.percentage >= 90 ? 'default' :
-                                subject.percentage >= 80 ? 'secondary' :
-                                subject.percentage >= 60 ? 'outline' : 'destructive'
+                                ((score / 20) * 100) >= 80 ? 'default' :
+                                ((score / 20) * 100) >= 60 ? 'secondary' : 'outline'
                               }>
-                                {subject.percentage >= 90 ? 'A+' :
-                                 subject.percentage >= 80 ? 'A' :
-                                 subject.percentage >= 70 ? 'B+' :
-                                 subject.percentage >= 60 ? 'B' : 'C'}
+                                {((score / 20) * 100).toFixed(0)}%
                               </Badge>
                             </TableCell>
                           </TableRow>
@@ -437,41 +438,10 @@ const UploadSection = () => {
                       </TableBody>
                     </Table>
                   </div>
-
-                  {/* Summary Stats */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-3 border-t">
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-primary">{result.totalScore}</p>
-                      <p className="text-sm text-muted-foreground">Total Score</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-success">
-                        {result.subjects.filter(s => s.percentage >= 60).length}
-                      </p>
-                      <p className="text-sm text-muted-foreground">Subjects Passed</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold">
-                        {result.overallPercentage.toFixed(1)}%
-                      </p>
-                      <p className="text-sm text-muted-foreground">Overall %</p>
-                    </div>
-                    <div className="text-center">
-                      <Badge className="text-base px-3 py-1" variant={
-                        result.overallPercentage >= 80 ? 'default' : 'secondary'
-                      }>
-                        {result.overallPercentage >= 80 ? 'PASS' : 'NEEDS IMPROVEMENT'}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div className="text-xs text-muted-foreground text-center pt-2 border-t">
-                    Evaluated on: {new Date(result.evaluatedAt).toLocaleString()}
-                  </div>
                 </div>
               ))}
             </div>
-          </CardContent>
+          </div>
         </Card>
       )}
     </div>

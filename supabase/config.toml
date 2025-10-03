@@ -1,1 +1,4 @@
 project_id = "lfzoswpkdilgmxrsqyaf"
+
+[functions.process-omr]
+verify_jwt = false

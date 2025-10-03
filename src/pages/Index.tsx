@@ -8,6 +8,7 @@ import { Upload, FileText, Users, BarChart3, CheckCircle, Clock, AlertTriangle, 
 import UploadSection from "@/components/UploadSection";
 import ResultsTable from "@/components/ResultsTable";
 import AnalyticsDashboard from "@/components/AnalyticsDashboard";
+import { AnswerKeyManager } from "@/components/AnswerKeyManager";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -56,7 +57,7 @@ const Index = () => {
 
       <div className="container mx-auto px-6 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-[600px]">
+          <TabsList className="grid w-full grid-cols-5 lg:w-[700px]">
             <TabsTrigger value="dashboard" className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground">
               Dashboard
             </TabsTrigger>
@@ -68,6 +69,9 @@ const Index = () => {
             </TabsTrigger>
             <TabsTrigger value="analytics" className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground">
               Analytics
+            </TabsTrigger>
+            <TabsTrigger value="answer-keys" className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground">
+              Answer Keys
             </TabsTrigger>
           </TabsList>
 
@@ -189,6 +193,10 @@ const Index = () => {
 
           <TabsContent value="analytics">
             <AnalyticsDashboard />
+          </TabsContent>
+
+          <TabsContent value="answer-keys">
+            <AnswerKeyManager />
           </TabsContent>
         </Tabs>
       </div>
