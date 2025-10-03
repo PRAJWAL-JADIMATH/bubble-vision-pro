@@ -12,7 +12,7 @@ export const AnswerKeyManager = () => {
   const [version, setVersion] = useState("A");
   const [examName, setExamName] = useState("");
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [isLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleGenerateTemplate = () => {
     const template: Record<string, string> = {};
@@ -31,11 +31,54 @@ export const AnswerKeyManager = () => {
   };
 
   const handleSaveAnswerKey = async () => {
-    toast({
-      title: "Database Setup Required",
-      description: "Please approve the database migration to enable answer key management",
-      variant: "destructive",
-    });
+    if (!examName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter an exam name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (Object.keys(answers).length !== 100) {
+      toast({
+        title: "Error",
+        description: "Please ensure all 100 answers are provided",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.from('answer_keys').insert({
+        exam_name: examName,
+        version,
+        answers,
+        total_questions: 100,
+        is_active: true,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Answer key saved successfully",
+      });
+
+      // Reset form
+      setExamName("");
+      setAnswers({});
+    } catch (error: any) {
+      console.error('Error saving answer key:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save answer key",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const renderQuestionInputs = (start: number, end: number, subjectName: string) => {
@@ -82,12 +125,6 @@ export const AnswerKeyManager = () => {
             <Upload className="mr-2 h-4 w-4" />
             Generate Template
           </Button>
-        </div>
-
-        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
-          <p className="text-sm font-medium text-yellow-600 dark:text-yellow-500">
-            ⚠️ Database setup required: Please approve the database migration to enable this feature.
-          </p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">

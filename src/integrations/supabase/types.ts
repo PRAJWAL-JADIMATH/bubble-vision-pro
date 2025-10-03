@@ -14,7 +14,96 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      answer_keys: {
+        Row: {
+          answers: Json
+          created_at: string
+          exam_name: string
+          id: string
+          is_active: boolean
+          total_questions: number
+          updated_at: string
+          version: string
+        }
+        Insert: {
+          answers: Json
+          created_at?: string
+          exam_name: string
+          id?: string
+          is_active?: boolean
+          total_questions?: number
+          updated_at?: string
+          version: string
+        }
+        Update: {
+          answers?: Json
+          created_at?: string
+          exam_name?: string
+          id?: string
+          is_active?: boolean
+          total_questions?: number
+          updated_at?: string
+          version?: string
+        }
+        Relationships: []
+      }
+      omr_evaluations: {
+        Row: {
+          confidence_score: number | null
+          created_at: string
+          detailed_results: Json | null
+          exam_version: string
+          id: string
+          percentage: number
+          roll_number: string
+          status: string
+          student_name: string
+          subject1_score: number
+          subject2_score: number
+          subject3_score: number
+          subject4_score: number
+          subject5_score: number
+          total_score: number
+          updated_at: string
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string
+          detailed_results?: Json | null
+          exam_version: string
+          id?: string
+          percentage: number
+          roll_number: string
+          status?: string
+          student_name: string
+          subject1_score: number
+          subject2_score: number
+          subject3_score: number
+          subject4_score: number
+          subject5_score: number
+          total_score: number
+          updated_at?: string
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string
+          detailed_results?: Json | null
+          exam_version?: string
+          id?: string
+          percentage?: number
+          roll_number?: string
+          status?: string
+          student_name?: string
+          subject1_score?: number
+          subject2_score?: number
+          subject3_score?: number
+          subject4_score?: number
+          subject5_score?: number
+          total_score?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
